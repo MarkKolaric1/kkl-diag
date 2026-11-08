@@ -1,0 +1,283 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KKL Diag" Width="1180" Height="780" MinWidth="980" MinHeight="640"
+        WindowStartupLocation="CenterScreen" Background="#F4F6FA"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+  <Window.Resources>
+    <!-- Palette -->
+    <SolidColorBrush x:Key="Bg" Color="#F4F6FA"/>
+    <SolidColorBrush x:Key="Card" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Line" Color="#E3E8EF"/>
+    <SolidColorBrush x:Key="Ink" Color="#0F172A"/>
+    <SolidColorBrush x:Key="Muted" Color="#64748B"/>
+    <SolidColorBrush x:Key="Accent" Color="#2563EB"/>
+    <SolidColorBrush x:Key="AccentHover" Color="#1D4ED8"/>
+    <SolidColorBrush x:Key="AccentSoft" Color="#EAF1FE"/>
+    <SolidColorBrush x:Key="Danger" Color="#DC2626"/>
+    <SolidColorBrush x:Key="DangerSoft" Color="#FDECEC"/>
+    <SolidColorBrush x:Key="Ok" Color="#15803D"/>
+    <SolidColorBrush x:Key="OkSoft" Color="#E6F6EB"/>
+    <SolidColorBrush x:Key="Warn" Color="#B45309"/>
+    <SolidColorBrush x:Key="WarnSoft" Color="#FEF3E2"/>
+    <SolidColorBrush x:Key="Side" Color="#0F172A"/>
+    <SolidColorBrush x:Key="SideHover" Color="#1E293B"/>
+    <SolidColorBrush x:Key="SideText" Color="#CBD5E1"/>
+    <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+    <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
+
+    <!-- Sidebar navigation item -->
+    <Style x:Key="Nav" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="{StaticResource SideText}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Margin" Value="10,1"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="B" CornerRadius="8" Padding="12,9" Background="Transparent">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <TextBlock Text="{TemplateBinding Tag}" FontFamily="{StaticResource Icons}" FontSize="16" VerticalAlignment="Center"/>
+                <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{StaticResource SideHover}"/></Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="B" Property="Background" Value="#24324A"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Sub-navigation pill (module functions, wizard) -->
+    <Style x:Key="Pill" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Margin" Value="0,0,6,0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="B" CornerRadius="8" Padding="12,7" Background="Transparent">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{TemplateBinding Tag}" FontFamily="{StaticResource Icons}" FontSize="13" VerticalAlignment="Center" Margin="0,1,8,0"/>
+                <ContentPresenter VerticalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#EEF2F7"/></Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="B" Property="Background" Value="{StaticResource AccentSoft}"/>
+                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Buttons -->
+    <Style x:Key="BtnBase" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding" Value="16,9"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="B" CornerRadius="8" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Opacity" Value="0.88"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Opacity" Value="0.75"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="B" Property="Opacity" Value="0.45"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+      <Setter Property="Background" Value="{StaticResource Accent}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style x:Key="Secondary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+      <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Line}"/><Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style x:Key="DangerBtn" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+      <Setter Property="Background" Value="{StaticResource Danger}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style x:Key="Ghost" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource Accent}"/>
+      <Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,6"/>
+    </Style>
+
+    <!-- Clickable tile (home actions, module grid) -->
+    <Style x:Key="Tile" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Margin" Value="0,0,12,12"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="B" CornerRadius="12" Padding="16" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                <Setter TargetName="B" Property="Background" Value="#FBFCFF"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="B" Property="Opacity" Value="0.5"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- On/off switch (add-ons) -->
+    <Style x:Key="Toggle" TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="Track" Width="44" Height="24" CornerRadius="12" Background="#CBD5E1">
+              <Ellipse x:Name="Knob" Width="18" Height="18" Fill="White" HorizontalAlignment="Left" Margin="3,0,0,0"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Track" Property="Background" Value="{StaticResource Accent}"/>
+                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
+                <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Opacity" Value="0.9"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="CardBorder" TargetType="Border">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="20"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+
+    <Style x:Key="Field" TargetType="TextBox">
+      <Setter Property="Padding" Value="8,7"/>
+      <Setter Property="BorderBrush" Value="#CBD5E1"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="B" CornerRadius="8" Background="White" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="B" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="236"/><ColumnDefinition/></Grid.ColumnDefinitions>
+
+    <!-- Sidebar -->
+    <Border Background="{StaticResource Side}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,22,20,26">
+          <Border Width="38" Height="38" CornerRadius="10" Background="{StaticResource Accent}">
+            <TextBlock Text="&#xE945;" FontFamily="{StaticResource Icons}" FontSize="18" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="KKL Diag" Foreground="White" FontSize="17" FontWeight="Bold"/>
+            <TextBlock Text="VW · Audi · Škoda · Seat" Foreground="#94A3B8" FontSize="11.5"/>
+          </StackPanel>
+        </StackPanel>
+
+        <Border DockPanel.Dock="Bottom" Margin="14,0,14,16" Padding="12,10" CornerRadius="10" Background="#16213A">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#64748B" VerticalAlignment="Center"/>
+              <TextBlock x:Name="StatusTitle" Text="No cable" Foreground="White" FontSize="12.5" FontWeight="SemiBold" Margin="8,0,0,0"/>
+            </StackPanel>
+            <TextBlock x:Name="StatusText" Text="Plug in the KKL cable" Foreground="#94A3B8" FontSize="11.5" Margin="16,2,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+
+        <StackPanel x:Name="NavPanel">
+          <TextBlock Text="DIAGNOSE" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="24,0,0,6"/>
+          <RadioButton x:Name="NavHome" Style="{StaticResource Nav}" Tag="&#xE80F;" Content="Home" GroupName="nav"/>
+          <RadioButton x:Name="NavModules" Style="{StaticResource Nav}" Tag="&#xE8A9;" Content="Control Modules" GroupName="nav"/>
+          <RadioButton x:Name="NavScan" Style="{StaticResource Nav}" Tag="&#xE721;" Content="Auto-Scan" GroupName="nav"/>
+          <TextBlock Text="GUIDED" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="24,18,0,6"/>
+          <RadioButton x:Name="NavKeys" Style="{StaticResource Nav}" Tag="&#xE8D7;" Content="Keys &amp; Immobilizer" GroupName="nav"/>
+          <TextBlock x:Name="AddonsHeader" Text="ADD-ONS" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="24,18,0,6"/>
+          <StackPanel x:Name="AddonNav"/>
+          <TextBlock Text="SYSTEM" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="24,18,0,6"/>
+          <RadioButton x:Name="NavLog" Style="{StaticResource Nav}" Tag="&#xE7C3;" Content="Log" GroupName="nav"/>
+          <RadioButton x:Name="NavSettings" Style="{StaticResource Nav}" Tag="&#xE713;" Content="Settings" GroupName="nav"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Main area -->
+    <DockPanel Grid.Column="1">
+      <!-- Top bar -->
+      <Border DockPanel.Dock="Top" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="28,14">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Text="Port" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="PortBox" Width="210" Padding="8,6" VerticalContentAlignment="Center"/>
+            <Button x:Name="RefreshPorts" Style="{StaticResource Ghost}" ToolTip="Look for cables again" Margin="4,0,14,0">
+              <TextBlock Text="&#xE72C;" FontFamily="{StaticResource Icons}" FontSize="14"/>
+            </Button>
+            <TextBlock Text="Speed" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="SpeedBox" Width="104" Padding="8,6" VerticalContentAlignment="Center"/>
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock x:Name="Crumb" Foreground="{StaticResource Muted}" FontSize="12.5"/>
+            <TextBlock x:Name="PageTitle" Foreground="{StaticResource Ink}" FontSize="22" FontWeight="SemiBold"/>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- Busy bar -->
+      <Border x:Name="BusyBar" DockPanel.Dock="Top" Background="{StaticResource AccentSoft}" Padding="28,10" Visibility="Collapsed">
+        <DockPanel>
+          <Button x:Name="CancelBtn" DockPanel.Dock="Right" Style="{StaticResource Secondary}" Content="Stop" Padding="14,5" Margin="0"/>
+          <ProgressBar DockPanel.Dock="Bottom" IsIndeterminate="True" Height="3" Margin="0,8,12,0" Foreground="{StaticResource Accent}" Background="Transparent" BorderThickness="0"/>
+          <TextBlock x:Name="BusyText" Foreground="{StaticResource Accent}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </DockPanel>
+      </Border>
+
+      <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Padding="28,24">
+        <ContentControl x:Name="PageHost" MaxWidth="1100" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"/>
+      </ScrollViewer>
+    </DockPanel>
+
+    <!-- Dialog overlay -->
+    <Grid x:Name="Overlay" Grid.ColumnSpan="2" Background="#990F172A" Visibility="Collapsed">
+      <Border Style="{StaticResource CardBorder}" Width="460" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="26">
+        <StackPanel>
+          <TextBlock x:Name="DlgTitle" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+          <TextBlock x:Name="DlgText" Margin="0,10,0,22" TextWrapping="Wrap" Foreground="#334155" LineHeight="21"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="DlgNo" Style="{StaticResource Secondary}" Content="Cancel"/>
+            <Button x:Name="DlgYes" Style="{StaticResource Primary}" Content="OK" Margin="0"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

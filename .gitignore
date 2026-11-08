@@ -1,0 +1,12 @@
+# Built app and downloaded tools
+*.exe
+build-tmp/
+addons/
+kw1281test/
+addons-src/kw1281test/
+
+# Personal data: settings, logs and EEPROM dumps contain your VIN and immobilizer data
+settings.ini
+logs/
+*.log
+*.bin

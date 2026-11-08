@@ -1,0 +1,323 @@
+diff --git a/Kwp2000/KW2000Dialog.cs b/Kwp2000/KW2000Dialog.cs
+index 0252049..43de2c1 100644
+--- a/Kwp2000/KW2000Dialog.cs
++++ b/Kwp2000/KW2000Dialog.cs
+@@ -132,6 +132,50 @@ internal class KW2000Dialog
+         }
+     }
+ 
++    /// <summary>
++    /// Sends raw message bytes (checksum appended here) and returns whatever bytes arrive
++    /// within listenMs. For probing modules whose expected header format is unknown.
++    /// </summary>
++    public List<byte> SendRawAndCollect(byte[] message, int listenMs)
++    {
++        byte checksum = 0;
++        foreach (var b in message)
++        {
++            checksum += b;
++        }
++
++        Thread.Sleep(P3);
++        foreach (var b in message)
++        {
++            _kwpCommon.WriteByte(b);
++            Thread.Sleep(P4);
++        }
++        _kwpCommon.WriteByte(checksum);
++        Log.WriteLine($"Sent raw:{Utils.Dump(message)} {checksum:X2}");
++
++        var received = new List<byte>();
++        var oldTimeout = _kwpCommon.Interface.ReadTimeout;
++        try
++        {
++            _kwpCommon.Interface.ReadTimeout = listenMs;
++            while (true)
++            {
++                received.Add(_kwpCommon.ReadByte());
++                _kwpCommon.Interface.ReadTimeout = 100; // response bytes arrive close together
++            }
++        }
++        catch (TimeoutException)
++        {
++        }
++        finally
++        {
++            _kwpCommon.Interface.ReadTimeout = oldTimeout;
++        }
++
++        Log.WriteLine(received.Count == 0 ? "Received: (nothing)" : $"Received raw:{Utils.Dump(received)}");
++        return received;
++    }
++
+     public void SendMessage(Service service, byte[] body, bool excludeAddresses = false)
+     {
+         static void Sleep(int ms)
+diff --git a/Program.cs b/Program.cs
+index ce5416d..6a49a56 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -2,6 +2,7 @@
+ 
+ using BitFab.KW1281Test.EDC15;
+ using BitFab.KW1281Test.Interface;
++using BitFab.KW1281Test.Kwp2000;
+ using BitFab.KW1281Test.Logging;
+ using System;
+ using System.Collections.Generic;
+@@ -329,6 +330,22 @@ class Program
+                 tester.EndCommunication();
+                 return;
+ 
++            case "kwp2000readfaultcodes":
++                Kwp2000Diagnostics.ReadFaultCodes(tester);
++                return;
++
++            case "kwp2000clearfaultcodes":
++                Kwp2000Diagnostics.ClearFaultCodes(tester);
++                return;
++
++            case "kwp2000readident":
++                Kwp2000Diagnostics.ReadIdent(tester);
++                return;
++
++            case "kwp2000probe":
++                Kwp2000Diagnostics.Probe(tester, (byte)controllerAddress);
++                return;
++
+             default:
+                 break;
+         }
+@@ -699,6 +716,10 @@ COMMAND =
+     LoadEeprom START FILENAME
+         START = Start address in decimal (e.g. 0) or hex (e.g. 0x0)
+         FILENAME = Name of file containing binary data to load into EEPROM
++    Kwp2000ClearFaultCodes
++    Kwp2000ReadFaultCodes
++    Kwp2000ReadIdent
++        (For modules that answer with KWP2000, e.g. ABS)
+     MapEeprom
+     ReadFaultCodes
+     ReadIdent
+diff --git a/Kwp2000/Kwp2000Diagnostics.cs b/Kwp2000/Kwp2000Diagnostics.cs
+new file mode 100644
+index 0000000..4f968f2
+--- /dev/null
++++ b/Kwp2000/Kwp2000Diagnostics.cs
+@@ -0,0 +1,175 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Text;
++using Service = BitFab.KW1281Test.Kwp2000.DiagnosticService;
++
++namespace BitFab.KW1281Test.Kwp2000;
++
++/// <summary>
++/// Fault code and identification services for modules that answer the 5-baud wakeup with
++/// KWP2000 (keyword 2027) instead of KWP1281, e.g. ABS units in early-2000s VAG cars.
++/// Output uses the same text format as the KWP1281 commands so front-ends can parse both.
++/// </summary>
++internal static class Kwp2000Diagnostics
++{
++    private const Service ReadDtcByStatus = (Service)0x18;
++    private const Service ClearDiagnosticInformation = (Service)0x14;
++    private const Service StopCommunication = (Service)0x82;
++    private const byte VagStandardSession = 0x89;
++    private const byte VagEcuIdentification = 0x9B;
++
++    public static void ReadFaultCodes(Tester tester)
++    {
++        var kwp2000 = tester.Kwp2000Wakeup();
++        Identify(kwp2000);
++
++        // statusOfDTC 0x02 = all identified DTCs with status, groupOfDTC 0xFF00 = all groups
++        var response = SendWithSessionFallback(kwp2000, ReadDtcByStatus, [0x02, 0xFF, 0x00]);
++
++        Log.WriteLine("Fault codes:");
++        foreach (var dtc in ParseDtcs(response.Body))
++        {
++            Log.WriteLine($"    {dtc}");
++        }
++        Stop(kwp2000);
++    }
++
++    public static void ClearFaultCodes(Tester tester)
++    {
++        var kwp2000 = tester.Kwp2000Wakeup();
++        Identify(kwp2000);
++        SendWithSessionFallback(kwp2000, ClearDiagnosticInformation, [0xFF, 0x00]);
++        Log.WriteLine("Fault codes cleared.");
++        Stop(kwp2000);
++    }
++
++    public static void ReadIdent(Tester tester)
++    {
++        var kwp2000 = tester.Kwp2000Wakeup();
++        Identify(kwp2000);
++        Stop(kwp2000);
++    }
++
++    /// <summary>
++    /// Body of a positive 0x58 response: count, then (DTC high, DTC low, status) per code.
++    /// </summary>
++    internal static List<Kwp2000Dtc> ParseDtcs(IList<byte> body)
++    {
++        var dtcs = new List<Kwp2000Dtc>();
++        for (var i = 1; i + 2 < body.Count; i += 3)
++        {
++            dtcs.Add(new Kwp2000Dtc(body[i] << 8 | body[i + 1], body[i + 2]));
++        }
++        return dtcs;
++    }
++
++    private static void Identify(KW2000Dialog kwp2000)
++    {
++        try
++        {
++            var response = kwp2000.SendReceive(Service.readEcuIdentification, [VagEcuIdentification]);
++            var text = new StringBuilder();
++            foreach (var b in response.Body.Skip(1))
++            {
++                text.Append(b >= 0x20 && b < 0x7F ? (char)b : ' ');
++            }
++            Log.WriteLine($"ECU: {string.Join(" ", text.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries))}");
++        }
++        catch (NegativeResponseException)
++        {
++            Log.WriteLine("ECU: (KWP2000 module, identification not available)");
++        }
++        catch (TimeoutException)
++        {
++            Log.WriteLine("ECU: (KWP2000 module, no answer to identification)");
++        }
++    }
++
++    /// <summary>
++    /// Connection test for modules that wake up with KWP2000 but ignore our requests: tries
++    /// the common header formats and requests in one session and logs the raw answers.
++    /// </summary>
++    public static void Probe(Tester tester, byte address)
++    {
++        var kwp2000 = tester.Kwp2000Wakeup();
++        Log.WriteLine("KWP2000 probe: each line shows what was sent and what came back.");
++
++        var variants = new (string Name, byte[] Bytes)[]
++        {
++            ("Identify, header with addresses", [0x82, address, 0xF1, 0x1A, 0x9B]),
++            ("Identify, header without addresses", [0x02, 0x1A, 0x9B]),
++            ("Tester present, with addresses", [0x81, address, 0xF1, 0x3E]),
++            ("Tester present, without addresses", [0x01, 0x3E]),
++            ("Start communication, with addresses", [0x81, address, 0xF1, 0x81]),
++            ("Start communication, without addresses", [0x01, 0x81]),
++            ("Diagnostic session 89, with addresses", [0x82, address, 0xF1, 0x10, 0x89]),
++            ("Diagnostic session 89, without addresses", [0x02, 0x10, 0x89]),
++            ("Read fault codes, with addresses", [0x84, address, 0xF1, 0x18, 0x02, 0xFF, 0x00]),
++            ("Read fault codes, without addresses", [0x04, 0x18, 0x02, 0xFF, 0x00]),
++            ("Identify, ISO ABS address $28", [0x82, 0x28, 0xF1, 0x1A, 0x9B]),
++        };
++
++        var answered = new List<string>();
++        foreach (var (name, bytes) in variants)
++        {
++            Log.WriteLine($"-- {name}");
++            if (kwp2000.SendRawAndCollect(bytes, listenMs: 1500).Count > 0)
++            {
++                answered.Add(name);
++            }
++        }
++
++        Log.WriteLine(answered.Count == 0
++            ? "PROBE RESULT: the module answered none of the variants."
++            : $"PROBE RESULT: answered to: {string.Join("; ", answered)}");
++    }
++
++    // Some modules only accept diagnostic services inside the VAG standard session.
++    private static Kwp2000Message SendWithSessionFallback(KW2000Dialog kwp2000, Service service, byte[] body)
++    {
++        try
++        {
++            return kwp2000.SendReceive(service, body);
++        }
++        catch (NegativeResponseException)
++        {
++            Log.WriteLine("Retrying in diagnostic session");
++            kwp2000.SendReceive(Service.startDiagnosticSession, [VagStandardSession]);
++            try
++            {
++                return kwp2000.SendReceive(service, body);
++            }
++            catch (NegativeResponseException ex)
++            {
++                Log.WriteLine($"Received a NAK. ({ex.Kwp2000Message.DescribeService()})");
++                throw new UnableToProceedException();
++            }
++        }
++    }
++
++    private static void Stop(KW2000Dialog kwp2000)
++    {
++        try
++        {
++            kwp2000.SendReceive(StopCommunication, []);
++        }
++        catch (Exception)
++        {
++            // The module times out the session on its own.
++        }
++    }
++}
++
++internal readonly struct Kwp2000Dtc(int code, byte status)
++{
++    public int Code { get; } = code;
++
++    public byte Status { get; } = status;
++
++    /// <summary>ISO 14230 storage state, bits 6-5: 11 = present at time of request.</summary>
++    public bool IsPresent => (Status >> 5 & 0x03) == 0x03;
++
++    /// <summary>Same layout as KWP1281 output ("CODE - TT-II"), with the symptom in TT.</summary>
++    public override string ToString() => $"{Code:D5} - {Status & 0x0F:D2}-{(IsPresent ? 0 : 10):D2}";
++}
+diff --git a/Tests/Kwp2000DiagnosticsTests.cs b/Tests/Kwp2000DiagnosticsTests.cs
+new file mode 100644
+index 0000000..bbf4554
+--- /dev/null
++++ b/Tests/Kwp2000DiagnosticsTests.cs
+@@ -0,0 +1,35 @@
++using BitFab.KW1281Test.Kwp2000;
++using Shouldly;
++
++namespace BitFab.KW1281Test.Tests;
++
++[TestClass]
++public class Kwp2000DiagnosticsTests
++{
++    [TestMethod]
++    public void ParseDtcs_NoCodes()
++    {
++        Kwp2000Diagnostics.ParseDtcs([0x00]).ShouldBeEmpty();
++    }
++
++    [TestMethod]
++    public void ParseDtcs_PresentAndStoredCodes()
++    {
++        // 2 codes: 00283 present (status $63), 01276 stored only (status $23)
++        var dtcs = Kwp2000Diagnostics.ParseDtcs([0x02, 0x01, 0x1B, 0x63, 0x04, 0xFC, 0x23]);
++
++        dtcs.Count.ShouldBe(2);
++        dtcs[0].Code.ShouldBe(283);
++        dtcs[0].IsPresent.ShouldBeTrue();
++        dtcs[0].ToString().ShouldBe("00283 - 03-00");
++        dtcs[1].Code.ShouldBe(1276);
++        dtcs[1].IsPresent.ShouldBeFalse();
++        dtcs[1].ToString().ShouldBe("01276 - 03-10");
++    }
++
++    [TestMethod]
++    public void ParseDtcs_IgnoresTrailingPartialEntry()
++    {
++        Kwp2000Diagnostics.ParseDtcs([0x01, 0x01, 0x1B, 0x63, 0x04]).Count.ShouldBe(1);
++    }
++}
