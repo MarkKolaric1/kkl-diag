@@ -4,6 +4,14 @@ A free, simple Windows app for diagnosing older VW-group cars (VW, Audi, Seat, Å
 
 It is a friendly front-end for [KW1281Test](https://github.com/gmenounos/kw1281test) by gmenounos, which does all the talking to the car. KKL Diag adds menus, plain-English results and step-by-step guides on top.
 
+![Home](docs/home.png)
+
+| Control modules | Key programming |
+|---|---|
+| ![Control modules](docs/modules.png) | ![Keys & immobilizer](docs/keys.png) |
+
+![Settings and add-ons](docs/settings.png)
+
 ## What it can do
 
 - **Auto-Scan**: read fault codes from every module in one go, with names and a Ross-Tech wiki link for each code.
